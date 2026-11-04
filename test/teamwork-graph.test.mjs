@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pageAri, jiraProjectAri, teamsQuery, PAGE_PEOPLE_QUERY } from '../src/services/teamwork-graph.js';
+import { pageAri, jiraProjectAri, teamsQuery, PAGE_PEOPLE_QUERY, classifyErrors, UNRESOLVED_NOTE } from '../src/services/teamwork-graph.js';
 
 test('builds Teamwork Graph ARIs', () => {
   assert.equal(pageAri('c1', '42'), 'ari:cloud:confluence:c1:page/42');
@@ -18,4 +18,12 @@ test('teams query aliases one field per person and the project', () => {
 test('page query uses only curated fields, first <= 25', () => {
   for (const f of ['confluencePageOwners', 'confluencePageCreator', 'confluencePageContributors', 'confluencePageLinkedConfluencePages']) assert.match(PAGE_PEOPLE_QUERY, new RegExp(f, 'u'));
   for (const n of PAGE_PEOPLE_QUERY.matchAll(/first: (\d+)/gu)) assert.ok(Number(n[1]) <= 25);
+});
+
+test('classifyErrors: null-node TWG errors become a note, others stay errors', () => {
+  const nullNode = { message: "The field at path '/owners/edges[0]/node' was declared as a non null type, but the code involved in retrieving data has wrongly returned a null value." };
+  const r = classifyErrors([nullNode, nullNode, { message: 'HTTP 403' }]);
+  assert.deepEqual(r.errors, ['HTTP 403']);
+  assert.deepEqual(r.notes, [UNRESOLVED_NOTE]);
+  assert.deepEqual(classifyErrors(undefined), { errors: [], notes: [] });
 });

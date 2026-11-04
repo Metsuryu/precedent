@@ -101,6 +101,7 @@ export const whoToAsk = async (id, { cloudId, accountId, projectId } = {}) => {
   }
   const people = await twgWhoToAsk({ cloudId: cid, pageId: pageIdOf(d), projectId });
   if (people.errors.length) console.warn(`TWG ${d.ref}: ${people.errors.join(' | ')}`);
+  if (people.notes?.length) console.info(`TWG ${d.ref}: ${people.notes.join(' | ')}`);
   const out = {
     id: d.ref,
     title: d.title,

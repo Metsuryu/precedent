@@ -34,6 +34,25 @@ export const teamsQuery = (userCount, withProject) => {
   return `query precedent_teams(${vars.join(', ')}) {\n  ${fields.join('\n  ')}\n}`;
 };
 
+/**
+ * TWG returns a "non null type ... wrongly returned a null value" error when an edge
+ * points at a principal it can't resolve as an AtlassianUser, e.g. a page created or
+ * edited by a Forge app user (our seeded demo page) or a deleted/hidden account.
+ * That is missing data, not an outage, so it is reported as a note, not an error.
+ */
+export const isUnresolvedNodeError = (msg = '') => /wrongly returned a null value/i.test(msg);
+export const UNRESOLVED_NOTE = 'page people not resolvable (page authored by an app or a hidden user)';
+
+/** Split TWG error messages into real errors and benign notes. */
+export const classifyErrors = (errs = []) => {
+  const errors = []; const notes = [];
+  for (const e of errs) {
+    const m = e?.message || String(e);
+    if (isUnresolvedNodeError(m)) { if (!notes.includes(UNRESOLVED_NOTE)) notes.push(UNRESOLVED_NOTE); } else errors.push(m);
+  }
+  return { errors, notes };
+};
+
 const nodes = (conn) => (conn?.edges || []).map((e) => e?.node).filter(Boolean);
 const uniqBy = (arr, key) => [...new Map(arr.map((x) => [x[key], x])).values()];
 
@@ -56,13 +75,14 @@ const run = async (query, variables) => {
  * @returns {{ owners, creator, contributors, teams, projectTeams, linkedPages, errors }}
  */
 export const whoToAsk = async ({ cloudId, pageId, projectId }) => {
-  const out = { owners: [], creator: null, contributors: [], teams: [], projectTeams: [], linkedPages: [], errors: [] };
+  const out = { owners: [], creator: null, contributors: [], teams: [], projectTeams: [], linkedPages: [], errors: [], notes: [] };
   if (!cloudId) return { ...out, errors: ['missing cloudId'] };
 
   let people = [];
   if (pageId) {
     const r = await run(PAGE_PEOPLE_QUERY, { page: pageAri(cloudId, pageId) });
-    if (r.errors?.length) out.errors.push(...r.errors.map((e) => e.message));
+    const c = classifyErrors(r.errors);
+    out.errors.push(...c.errors); out.notes.push(...c.notes);
     const d = r.data || {};
     out.owners = nodes(d.owners);
     out.creator = nodes(d.creator)[0] || null;
@@ -76,7 +96,8 @@ export const whoToAsk = async ({ cloudId, pageId, projectId }) => {
     people.forEach((p, i) => { vars[`u${i}`] = p.id; });
     if (projectId) vars.project = jiraProjectAri(cloudId, projectId);
     const r = await run(teamsQuery(people.length, Boolean(projectId)), vars);
-    if (r.errors?.length) out.errors.push(...r.errors.map((e) => e.message));
+    const c = classifyErrors(r.errors);
+    out.errors.push(...c.errors); out.notes.push(...c.notes);
     const d = r.data || {};
     const teams = people.flatMap((p, i) => nodes(d[`t${i}`]).map((t) => ({ ...t, member: p.name })));
     out.teams = uniqBy(teams, 'id');
@@ -92,5 +113,6 @@ export const whoToAsk = async ({ cloudId, pageId, projectId }) => {
     projectTeams: out.projectTeams.map((t) => ({ name: t.displayName, url: t.profileUrl })),
     linkedPages: out.linkedPages,
     errors: out.errors,
+    notes: [...new Set(out.notes)],
   };
 };

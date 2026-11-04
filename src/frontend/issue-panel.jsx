@@ -26,7 +26,12 @@ const WhoToAsk = ({ w }) => {
   const teams = uniq([...(w.teams || []), ...(w.projectTeams || [])].map((t) => t.name).filter(Boolean)).slice(0, 4);
   const linked = (w.linkedPages || []).slice(0, 3);
   if (!people.length && !teams.length && !linked.length) {
-    return <Text><Em>Who to ask: {w.recordedOwner || 'the recorded owner'}{w.errors?.length ? ' (Teamwork Graph unavailable)' : ' (no extra Teamwork Graph data)'}</Em></Text>;
+    const why = w.errors?.length
+      ? ' (Teamwork Graph unavailable right now)'
+      : w.notes?.length
+        ? ' (the decision page was written by an app, so Teamwork Graph has no page authors)'
+        : ' (no extra Teamwork Graph data)';
+    return <Text><Em>Who to ask: {w.recordedOwner || 'the recorded owner'}{why}</Em></Text>;
   }
   return (
     <Stack space="space.050">
