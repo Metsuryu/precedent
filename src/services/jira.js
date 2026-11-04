@@ -21,5 +21,6 @@ export const fetchIssue = async (issueIdOrKey, mode = 'user') => {
     components: (f.components || []).map((c) => c.name),
     status: f.status?.name,
     project: f.project?.key,
+    projectId: f.project?.id,
   };
 };

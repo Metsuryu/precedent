@@ -35,6 +35,10 @@ modules:
         - check-issue: compare a Jira issue against all recorded decisions. If the user is
           looking at an issue and does not give a key, call it without a key; the issue in
           context is used.
+        - who-to-ask: for one decision, find who decided and who to ask now (page owners,
+          creator, contributors, their teams, linked pages) from Atlassian Teamwork Graph.
+          Use it when the user asks who to talk to, or after flagging a contradiction.
+        Follow the decision-check skill for the step-by-step review procedure.
 
         Rules:
         - Only state decisions that the tools return. Never invent decisions, owners or dates.
@@ -54,6 +58,32 @@ modules:
         - search-decisions
         - get-decision
         - check-issue
+        - who-to-ask
+      skills:
+        - decision-check
+
+  # Reusable skill (Preview): the decision-check procedure, usable by other Rovo agents.
+  rovo:skill:
+    - key: decision-check
+      source:
+        dir: skills/decision-check
+      dependencies:
+        tools:
+          - search-decisions
+          - get-decision
+          - check-issue
+          - who-to-ask
+
+  # MCP server (Preview): exposes the same tools to Rovo Studio agents and, if an admin
+  # allows it, to external MCP clients.
+  rovo:mcp:
+    - key: precedent-mcp
+      name: Precedent decisions
+      tools:
+        - search-decisions
+        - get-decision
+        - check-issue
+        - who-to-ask
 
   action:
     - key: search-decisions
@@ -89,6 +119,22 @@ modules:
           type: string
           required: false
           description: Jira issue key such as PROJ-123. Optional when the user is viewing an issue.
+    - key: who-to-ask
+      name: Who to ask about a decision
+      function: who-to-ask-fn
+      actionVerb: GET
+      description: For one decision (e.g. DEC-3), find who decided it and who to ask now using Atlassian Teamwork Graph - page owners, creator, contributors, their teams, teams linked to the issue's project, and linked pages.
+      inputs:
+        decisionId:
+          title: Decision id
+          type: string
+          required: true
+          description: The decision id, for example DEC-3.
+        issueKey:
+          title: Issue key
+          type: string
+          required: false
+          description: Optional Jira issue key; adds teams linked to that issue's project.
 
   # Keep the decision log in sync when Confluence pages change.
   trigger:
@@ -97,6 +143,12 @@ modules:
       events:
         - avi:confluence:created:page
         - avi:confluence:updated:page
+    # Precompute issue-panel matches so the panel renders from cache.
+    - key: precedent-issue-precompute
+      function: issue-precompute-fn
+      events:
+        - avi:jira:created:issue
+        - avi:jira:updated:issue
 
   # Development-only tooling (seed + backend checks). Guarded by DEV_KEY.
   webtrigger:
@@ -114,8 +166,12 @@ modules:
       handler: index.getDecisionAction
     - key: check-issue-fn
       handler: index.checkIssueAction
+    - key: who-to-ask-fn
+      handler: index.whoToAskAction
     - key: page-sync-fn
       handler: index.onPageEvent
+    - key: issue-precompute-fn
+      handler: index.onIssueEvent
     - key: devtools-fn
       handler: index.devtools
 
@@ -134,6 +190,11 @@ permissions:
     - write:page:confluence
     - read:space:confluence
     - read:confluence-content.summary
+    # Teamwork Graph (Preview), read-only, user context.
+    - read:graph:page:confluence
+    - read:graph:user:atlassian
+    - read:graph:team:atlassian
+    - read:graph:project:jira
 
 app:
   runtime:

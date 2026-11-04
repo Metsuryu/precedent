@@ -16,7 +16,35 @@ const rowStyle = xcss({
   padding: 'space.150',
 });
 
-const DecisionRow = ({ m }) => (
+const names = (people) => (people || []).map((p) => p?.name).filter(Boolean);
+const uniq = (xs) => [...new Set(xs)];
+
+/** Teamwork Graph "who decided / who to ask" block for one decision. */
+const WhoToAsk = ({ w }) => {
+  if (!w) return <Text><Em>Looking up who to ask…</Em></Text>;
+  const people = uniq([...names(w.owners), ...names([w.creator]), ...names(w.contributors)]).slice(0, 5);
+  const teams = uniq([...(w.teams || []), ...(w.projectTeams || [])].map((t) => t.name).filter(Boolean)).slice(0, 4);
+  const linked = (w.linkedPages || []).slice(0, 3);
+  if (!people.length && !teams.length && !linked.length) {
+    return <Text><Em>Who to ask: {w.recordedOwner || 'the recorded owner'}{w.errors?.length ? ' (Teamwork Graph unavailable)' : ' (no extra Teamwork Graph data)'}</Em></Text>;
+  }
+  return (
+    <Stack space="space.050">
+      {people.length > 0 && <Text>Who to ask: <Strong>{people.join(', ')}</Strong></Text>}
+      {teams.length > 0 && <Text>Teams: {teams.join(', ')}</Text>}
+      {linked.length > 0 && (
+        <Text>
+          Linked pages:{' '}
+          {linked.map((p, i) => (
+            <React.Fragment key={p.url || i}>{i > 0 ? ', ' : ''}<Link href={p.url} openNewTab>{p.title || 'page'}</Link></React.Fragment>
+          ))}
+        </Text>
+      )}
+    </Stack>
+  );
+};
+
+const DecisionRow = ({ m, who, showWho }) => (
   <Box xcss={rowStyle}>
     <Stack space="space.075">
       <Inline space="space.100" alignBlock="center" shouldWrap>
@@ -32,20 +60,32 @@ const DecisionRow = ({ m }) => (
         {m.source?.url && <Link href={m.source.url} openNewTab>{m.source.title || 'source'}</Link>}
       </Text>
       {m.why?.length > 0 && <Text><Em>Why it matched: {m.why.join('; ')}</Em></Text>}
+      {showWho && <WhoToAsk w={who} />}
     </Stack>
   </Box>
 );
 
 const App = () => {
   const [state, setState] = useState({ loading: true });
+  const [who, setWho] = useState({});
 
-  const load = () => {
+  const load = (fresh = false) => {
     setState({ loading: true });
-    invoke('checkCurrentIssue')
+    setWho({});
+    invoke('checkCurrentIssue', { fresh })
       .then((data) => setState({ loading: false, data }))
       .catch((e) => setState({ loading: false, error: e.message }));
   };
-  useEffect(load, []);
+  useEffect(() => load(false), []);
+
+  // After matches render, enrich the top decisions (contradictions first) via Teamwork Graph.
+  const whoIds = (state.data?.matches || []).slice(0, 3).map((m) => m.id);
+  useEffect(() => {
+    if (!whoIds.length) return;
+    invoke('whoToAsk', { ids: whoIds, projectId: state.data?.issue?.projectId })
+      .then((res) => setWho(res || {}))
+      .catch(() => setWho(Object.fromEntries(whoIds.map((id) => [id, { errors: ['request failed'] }]))));
+  }, [whoIds.join(',')]);
 
   if (state.loading) return <Spinner label="Checking past decisions" />;
   if (state.error || state.data?.error) {
@@ -64,8 +104,8 @@ const App = () => {
       ) : (
         <EmptyState header="No related decisions" description={`Checked ${totalDecisions} recorded decision${totalDecisions === 1 ? '' : 's'}.`} />
       )}
-      {matches.map((m) => <DecisionRow key={m.id} m={m} />)}
-      <Inline><Button appearance="subtle" onClick={load}>Re-check</Button></Inline>
+      {matches.map((m) => <DecisionRow key={m.id} m={m} who={who[m.id]} showWho={whoIds.includes(m.id)} />)}
+      <Inline><Button appearance="subtle" onClick={() => load(true)}>Re-check</Button></Inline>
     </Stack>
   );
 };

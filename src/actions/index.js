@@ -3,7 +3,8 @@
  * Each handler receives the action inputs plus a `context` object from Rovo.
  * Errors are returned as plain messages so the agent can explain them.
  */
-import { checkIssue, detail, search } from '../services/precedent.js';
+import { checkIssue, detail, search, whoToAsk } from '../services/precedent.js';
+import { fetchIssue } from '../services/jira.js';
 
 const ISSUE_KEY = /\b[A-Z][A-Z0-9_]+-\d+\b/u;
 
@@ -36,4 +37,18 @@ export const checkIssueAction = safe(async (payload) => {
   const key = fromInput || fromContext;
   if (!key) return { error: 'Provide a Jira issue key such as PROJ-123.' };
   return checkIssue(key, { mode: 'user', limit: 5 });
+});
+
+/**
+ * who-to-ask: Teamwork Graph view of who decided and who to ask about a decision
+ * (page owners/creator/contributors, their teams, linked pages, and teams linked
+ * to the issue's project when an issue key is given or in context).
+ */
+export const whoToAskAction = safe(async (payload) => {
+  const id = String(payload.decisionId || '').trim();
+  if (!id) return { error: 'Provide a decision id such as DEC-3.' };
+  const issueKey = String(payload.issueKey || '').toUpperCase().match(ISSUE_KEY)?.[0] || payload.context?.jira?.issueKey;
+  let projectId;
+  if (issueKey) projectId = (await fetchIssue(issueKey, 'user').catch(() => ({}))).projectId;
+  return whoToAsk(id, { cloudId: payload.context?.cloudId, accountId: payload.context?.accountId, projectId });
 });

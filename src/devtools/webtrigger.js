@@ -11,8 +11,8 @@
  */
 import api, { route } from '@forge/api';
 import { kvs } from '@forge/kvs';
-import { listDecisions, upsertFromSource } from '../store/decisions.js';
-import { checkIssue, search, present } from '../services/precedent.js';
+import { listDecisions, upsertFromSource, bumpVersion } from '../store/decisions.js';
+import { checkIssue, search, present, precomputeIssue } from '../services/precedent.js';
 import { MACRO_MODULE_KEY, syncPage } from '../services/confluence.js';
 import { DEMO_DECISIONS, DEMO_ISSUES } from '../seed/demo-data.js';
 
@@ -162,6 +162,18 @@ export const devtools = async (req, context) => {
       return json(200, { log, page, issues });
     }
     if (op === 'check') return json(200, await checkIssue(q(req, 'issue'), { mode: 'app', limit: 5 }));
+    if (op === 'precompute') return json(200, await precomputeIssue(q(req, 'issue')));
+    if (op === 'twg-app') {
+      // Probe: Teamwork Graph is user-context only; this documents what asApp returns.
+      const app = api.asApp();
+      if (typeof app.requestTeamworkGraph !== 'function') return json(200, { asApp: 'requestTeamworkGraph is not available on asApp() (user context only)' });
+      try {
+        const res = await app.requestTeamworkGraph('query { echo(myString: "ping") }');
+        return json(200, { status: res.status, body: String(await res.text()).slice(0, 500) });
+      } catch (e) {
+        return json(200, { asApp: 'threw', message: String(e.message || e) });
+      }
+    }
     if (op === 'search') return json(200, await search(q(req, 'q') || ''));
     if (op === 'sync') return json(200, await syncPage(q(req, 'page')));
     if (op === 'reset-decisions') {
@@ -169,6 +181,7 @@ export const devtools = async (req, context) => {
       const ds = await listDecisions();
       for (const d of ds) await kvs.entity('decision').delete(d.key);
       await kvs.delete('seq:decision');
+      await bumpVersion();
       return json(200, { deleted: ds.length });
     }
     if (op === 'list') return json(200, (await listDecisions()).map(present));

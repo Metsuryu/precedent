@@ -16,7 +16,24 @@ import { toList } from '../lib/text.js';
 
 const ENTITY = 'decision';
 const SEQ_KEY = 'seq:decision';
+const VERSION_KEY = 'meta:decisions-version';
 const entity = () => kvs.entity(ENTITY);
+
+/**
+ * Monotonic "decision log version". Bumped on every real change so caches
+ * (per-issue match results, the in-memory list) know when they are stale.
+ */
+export const getVersion = async () => (await kvs.get(VERSION_KEY)) || 0;
+export const bumpVersion = async () => {
+  const v = (await getVersion()) + 1;
+  await kvs.set(VERSION_KEY, v);
+  memo = undefined;
+  return v;
+};
+let memo; // { version, decisions } — survives across invocations in a warm container
+
+const CONTENT_FIELDS = ['title', 'decision', 'rationale', 'owner', 'decidedOn', 'tags', 'components', 'conflictTerms', 'status', 'supersededBy', 'sourceTitle', 'sourceUrl'];
+const sameContent = (a, b) => CONTENT_FIELDS.every((f) => JSON.stringify(a?.[f] ?? '') === JSON.stringify(b?.[f] ?? ''));
 
 /** Entity keys must be simple strings; derive one from the source key. */
 export const keyForSource = (sourceKey) => `d:${String(sourceKey).replace(/[^a-zA-Z0-9:._-]/gu, '_')}`.slice(0, 100);
@@ -60,12 +77,15 @@ export const upsertFromSource = async ({ sourceKey, sourceType, sourceUrl, sourc
   };
   // The entity store rejects empty strings, so drop blank optional attributes.
   for (const k of Object.keys(record)) if (record[k] === '') delete record[k];
+  // The macro re-syncs on every view: skip the write (and cache invalidation) when nothing changed.
+  if (existing && sameContent(existing, record)) return { key, ...existing, unchanged: true };
   await entity().set(key, record);
+  await bumpVersion();
   return { key, ...record };
 };
 
 /** Read every decision (paged). Fine for v1 volumes (hundreds). */
-export const listDecisions = async ({ includeSuperseded = true } = {}) => {
+const readAll = async () => {
   const out = [];
   let cursor;
   do {
@@ -75,6 +95,14 @@ export const listDecisions = async ({ includeSuperseded = true } = {}) => {
     for (const r of page.results) out.push({ key: r.key, ...r.value });
     cursor = page.nextCursor;
   } while (cursor);
+  return out;
+};
+
+/** All decisions, served from a warm-container memo while the log version is unchanged. */
+export const listDecisions = async ({ includeSuperseded = true, version } = {}) => {
+  const v = version ?? (await getVersion());
+  if (!memo || memo.version !== v) memo = { version: v, decisions: await readAll() };
+  const out = memo.decisions;
   return includeSuperseded ? out : out.filter((d) => d.status === 'active');
 };
 
@@ -96,5 +124,6 @@ export const deleteMissingForPage = async (pageId, keepSourceKeys) => {
   const all = await listDecisions();
   const stale = all.filter((d) => d.sourceType === 'confluence' && d.sourceKey.startsWith(`${pageId}:`) && !keep.has(d.sourceKey));
   for (const d of stale) await entity().delete(d.key);
+  if (stale.length) await bumpVersion();
   return stale.map((d) => d.ref);
 };

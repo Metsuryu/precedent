@@ -4,7 +4,7 @@
  */
 import Resolver from '@forge/resolver';
 import { upsertFromSource } from '../store/decisions.js';
-import { checkIssue } from '../services/precedent.js';
+import { checkIssueCached, whoToAsk } from '../services/precedent.js';
 
 const resolver = new Resolver();
 
@@ -34,10 +34,19 @@ resolver.define('syncDecisionMacro', async ({ payload, context }) => {
 });
 
 /** Called by the Jira issue panel: related decisions + possible contradictions. */
-resolver.define('checkCurrentIssue', async ({ context }) => {
-  const key = context.extension?.issue?.key || context.extension?.issue?.id;
-  if (!key) return { error: 'No issue in context' };
-  return checkIssue(key, { mode: 'user', limit: 6 });
+// Serves the precomputed result when current (see triggers/jira.js); `fresh` forces a live check.
+resolver.define('checkCurrentIssue', async ({ payload, context }) => {
+  const id = context.extension?.issue?.id || context.extension?.issue?.key;
+  if (!id) return { error: 'No issue in context' };
+  return checkIssueCached(id, { limit: 6, fresh: Boolean(payload?.fresh) });
+});
+
+/** Teamwork Graph "who decided / who to ask" for a few decisions shown in the panel. */
+resolver.define('whoToAsk', async ({ payload, context }) => {
+  const ids = (payload?.ids || []).slice(0, 3);
+  const opts = { cloudId: context.cloudId, accountId: context.accountId, projectId: payload?.projectId };
+  const results = await Promise.all(ids.map((id) => whoToAsk(id, opts).catch((e) => ({ id, errors: [String(e.message || e)] }))));
+  return Object.fromEntries(results.map((r, i) => [ids[i], r]));
 });
 
 export const handler = resolver.getDefinitions();
