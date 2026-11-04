@@ -1,0 +1,176 @@
+modules:
+  # Confluence: capture decisions where teams already write them.
+  macro:
+    - key: precedent-decision-record
+      resource: macro
+      render: native
+      resolver:
+        function: resolver
+      title: Decision record
+      description: Record a team decision (what, why, who, when) so Precedent can surface it on related Jira issues.
+      config: true
+
+  # Jira: surface related decisions and possible contradictions on every issue.
+  jira:issuePanel:
+    - key: precedent-issue-panel
+      resource: issue-panel
+      resolver:
+        function: resolver
+      render: native
+      title: Precedent
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+
+  # Rovo agent + reusable actions.
+  rovo:agent:
+    - key: precedent-agent
+      name: Precedent
+      description: Answers "has this been decided before?" using your team's recorded decisions, and flags issues that contradict them.
+      prompt: >
+        You are Precedent, a decision-memory assistant for software teams.
+        Your job is to stop teams from re-arguing settled decisions or quietly contradicting them.
+
+        Tools:
+        - search-decisions: find recorded decisions about a topic.
+        - get-decision: read one decision in full by id (e.g. DEC-3).
+        - check-issue: compare a Jira issue against all recorded decisions. If the user is
+          looking at an issue and does not give a key, call it without a key; the issue in
+          context is used.
+
+        Rules:
+        - Only state decisions that the tools return. Never invent decisions, owners or dates.
+        - Always cite the decision id, who decided it, the date and the source link when available.
+        - When check-issue reports possibleContradiction=true, say clearly that the issue
+          MAY contradict the decision, quote the relevant part of the decision, and suggest
+          talking to the owner or recording a new decision that supersedes it.
+        - Mention when a decision is superseded and point to the newer one.
+        - If nothing relevant is found, say so plainly.
+        - Keep answers short: a one-line verdict, then a bullet per relevant decision.
+      conversationStarters:
+        - Has this been decided before?
+        - Does this issue contradict any past decisions?
+        - What did we decide about datastores?
+        - Who decided the API v1 freeze, and why?
+      actions:
+        - search-decisions
+        - get-decision
+        - check-issue
+
+  action:
+    - key: search-decisions
+      name: Search decisions
+      function: search-decisions-fn
+      actionVerb: GET
+      description: Search the team's recorded decisions by topic or keywords and return matching decisions with owner, date, status and source link.
+      inputs:
+        query:
+          title: Query
+          type: string
+          required: true
+          description: Topic or keywords to search for, e.g. "datastore", "API v1", "admin sessions".
+    - key: get-decision
+      name: Get decision detail
+      function: get-decision-fn
+      actionVerb: GET
+      description: Get the full record of one decision by its id (e.g. DEC-3), including rationale, owner, date, status and source link.
+      inputs:
+        decisionId:
+          title: Decision id
+          type: string
+          required: true
+          description: The decision id, for example DEC-3.
+    - key: check-issue
+      name: Check issue against decisions
+      function: check-issue-fn
+      actionVerb: GET
+      description: Check a Jira issue against recorded decisions; returns related decisions and flags possible contradictions. Uses the issue in context if no key is given.
+      inputs:
+        issueKey:
+          title: Issue key
+          type: string
+          required: false
+          description: Jira issue key such as PROJ-123. Optional when the user is viewing an issue.
+
+  # Keep the decision log in sync when Confluence pages change.
+  trigger:
+    - key: precedent-page-sync
+      function: page-sync-fn
+      events:
+        - avi:confluence:created:page
+        - avi:confluence:updated:page
+
+  # Development-only tooling (seed + backend checks). Guarded by DEV_KEY.
+  webtrigger:
+    - key: precedent-devtools
+      function: devtools-fn
+      response:
+        type: dynamic
+
+  function:
+    - key: resolver
+      handler: index.handler
+    - key: search-decisions-fn
+      handler: index.searchDecisionsAction
+    - key: get-decision-fn
+      handler: index.getDecisionAction
+    - key: check-issue-fn
+      handler: index.checkIssueAction
+    - key: page-sync-fn
+      handler: index.onPageEvent
+    - key: devtools-fn
+      handler: index.devtools
+
+resources:
+  - key: macro
+    path: src/frontend/macro.jsx
+  - key: issue-panel
+    path: src/frontend/issue-panel.jsx
+
+permissions:
+  scopes:
+    - storage:app
+    - read:jira-work
+    - write:jira-work
+    - read:page:confluence
+    - write:page:confluence
+    - read:space:confluence
+    - read:confluence-content.summary
+
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/d493a6cd-d4e5-4281-94bf-0ba3be5e255a
+  compatibility:
+    jira:
+      required: true
+    confluence:
+      required: false
+  storage:
+    entities:
+      - name: decision
+        attributes:
+          ref: { type: string }
+          title: { type: string }
+          decision: { type: string }
+          rationale: { type: string }
+          owner: { type: string }
+          decidedOn: { type: string }
+          tags: { type: any }
+          components: { type: any }
+          conflictTerms: { type: string }
+          status: { type: string }
+          supersededBy: { type: string }
+          sourceType: { type: string }
+          sourceKey: { type: string }
+          sourceUrl: { type: string }
+          sourceTitle: { type: string }
+          recordedBy: { type: string }
+          updatedAt: { type: integer }
+        indexes:
+          - name: by-updated
+            range: [updatedAt]
+          - name: by-ref
+            range: [ref]
+          - name: by-source
+            range: [sourceKey]

@@ -1,0 +1,86 @@
+/**
+ * Neutral, fictional demo data for "Lumen Freight" (an invented company).
+ * Used only by the dev tooling to populate a test site.
+ */
+export const DEMO_DECISIONS = [
+  {
+    title: 'No new datastores without an approved ADR',
+    decision: 'Teams must not introduce a new datastore (for example Redis, MongoDB or Cassandra) without an approved architecture decision record. Use the shared PostgreSQL cluster by default.',
+    rationale: 'Each extra datastore adds on-call load, backup work and security reviews. Three datastores were retired last year for this reason.',
+    owner: 'Priya Raman (Platform team)',
+    decidedOn: '2026-08-12',
+    tags: 'datastore, architecture, platform',
+    components: 'backend',
+    conflictTerms: 'redis, mongodb, cassandra, elasticsearch, new database, new datastore',
+  },
+  {
+    title: 'Freeze API v1: no new endpoints',
+    decision: 'Do not add new endpoints to API v1. All new integrations are built on API v2; v1 is deprecated and will be switched off on 2027-03-31.',
+    rationale: 'Maintaining two API versions doubles testing effort. Partners were notified in July.',
+    owner: 'Marco Bianchi (API guild)',
+    decidedOn: '2026-07-03',
+    tags: 'api, deprecation, partners',
+    components: 'api',
+    conflictTerms: 'api v1, v1 endpoint, /v1/',
+  },
+  {
+    title: 'Standardise tracing on OpenTelemetry',
+    decision: 'All services emit traces with OpenTelemetry SDKs. Avoid vendor-specific tracing agents.',
+    rationale: 'Keeps us portable across observability back-ends and gives one trace format end to end.',
+    owner: 'Lena Okafor (SRE)',
+    decidedOn: '2026-05-20',
+    tags: 'observability, tracing, opentelemetry',
+    components: 'backend',
+    conflictTerms: 'proprietary agent, vendor agent, custom tracing',
+  },
+  {
+    title: 'Admin sessions expire after 30 minutes',
+    decision: 'Admin console sessions expire after 30 minutes of inactivity. No "remember me" option for admin accounts.',
+    rationale: 'Required by the internal security policy after the 2025 audit.',
+    owner: 'Security Council',
+    decidedOn: '2026-02-14',
+    tags: 'security, auth, admin',
+    components: 'admin-console',
+    conflictTerms: 'remember me, longer session, extend session, persistent login',
+  },
+  {
+    title: 'Customer-facing releases ship behind feature flags',
+    decision: 'Every customer-facing change is released behind a feature flag and rolled out gradually. Never ship big-bang releases.',
+    rationale: 'Lets us roll back without a deploy and run staged rollouts.',
+    owner: 'Release Management',
+    decidedOn: '2026-04-02',
+    tags: 'release, feature flags',
+    components: 'frontend',
+    conflictTerms: 'big bang, without feature flag, without a flag',
+  },
+  {
+    title: 'Use REST polling for live shipment updates',
+    decision: 'The tracking page polls the REST API every 30 seconds for live updates.',
+    rationale: 'Simple to build for the first release.',
+    owner: 'Tracking squad',
+    decidedOn: '2025-11-10',
+    tags: 'tracking, realtime',
+    components: 'frontend',
+    status: 'superseded',
+    supersededBy: 'DEC-7',
+  },
+  {
+    title: 'Live shipment updates use WebSockets',
+    decision: 'The tracking page receives live updates over WebSockets via the shared realtime gateway. Avoid client polling for live data.',
+    rationale: 'Polling created 40% of API traffic at peak.',
+    owner: 'Tracking squad',
+    decidedOn: '2026-06-18',
+    tags: 'tracking, realtime, websockets',
+    components: 'frontend',
+    conflictTerms: 'polling, poll the api',
+  },
+];
+
+export const DEMO_ISSUES = [
+  { summary: 'Add Redis cache for shipment search results', description: 'Search is slow at peak. Proposal: put a Redis cache in front of the search service with a 5 minute TTL.', labels: ['performance', 'backend'] },
+  { summary: 'Expose new /v1/partners/export endpoint for a logistics partner', description: 'A partner asked for a bulk export. Quickest path is a new endpoint on API v1 next to the existing ones.', labels: ['api', 'partners'] },
+  { summary: 'Add "remember me" checkbox to the admin console login', description: 'Admins complain about logging in too often. Add a remember me option with a 30 day persistent login.', labels: ['admin', 'ux'] },
+  { summary: 'Instrument checkout service with OpenTelemetry spans', description: 'Add OpenTelemetry tracing to the checkout service so we can follow requests end to end.', labels: ['observability'] },
+  { summary: 'Roll out the new onboarding wizard', description: 'Release the redesigned onboarding wizard to all customers behind a feature flag, 10% first.', labels: ['release', 'frontend'] },
+  { summary: 'Update footer copyright year', description: 'Change the year in the marketing site footer.', labels: ['content'] },
+];
