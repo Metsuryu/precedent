@@ -8,12 +8,16 @@
  *   GET  ?op=check&issue=KEY   run the matcher on an issue (as the app)
  *   GET  ?op=search&q=text     search decisions
  *   GET  ?op=sync&page=ID      re-sync one Confluence page
+ *   GET  ?op=page-info[&page=ID]     page author/status/version + view/edit restrictions
+ *   POST ?op=make-editable[&page=ID] clear blocking edit restrictions (probe v1 APIs)
+ *
+ * page-info / make-editable default to the seeded demo page (KVS seed:page, else 3178497).
  */
 import api, { route } from '@forge/api';
 import { kvs } from '@forge/kvs';
 import { listDecisions, upsertFromSource, bumpVersion } from '../store/decisions.js';
 import { checkIssue, search, present, precomputeIssue } from '../services/precedent.js';
-import { MACRO_MODULE_KEY, syncPage } from '../services/confluence.js';
+import { MACRO_MODULE_KEY, syncPage, pageInfo, makeEditable } from '../services/confluence.js';
 import { DEMO_DECISIONS, DEMO_ISSUES } from '../seed/demo-data.js';
 
 const json = (statusCode, body) => ({
@@ -185,6 +189,12 @@ export const devtools = async (req, context) => {
       return json(200, { deleted: ds.length });
     }
     if (op === 'list') return json(200, (await listDecisions()).map(present));
+    if (op === 'page-info' || op === 'make-editable') {
+      const seed = await kvs.get('seed:page');
+      const pageId = q(req, 'page') || seed?.id || '3178497';
+      if (op === 'page-info') return json(200, await pageInfo(pageId));
+      return json(200, await makeEditable(pageId));
+    }
     return json(400, { error: `unknown op ${op}` });
   } catch (e) {
     return json(500, { error: String(e.message || e), stack: String(e.stack || '').split('\n').slice(0, 5) });

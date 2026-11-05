@@ -183,6 +183,10 @@ resources:
 
 permissions:
   scopes:
+    # Needed for page-info / make-editable (v1 restriction APIs) and Claim (user/current).
+    - read:confluence-content.all
+    - write:confluence-content
+    - read:confluence-user
     - storage:app
     - read:jira-work
     - write:jira-work
