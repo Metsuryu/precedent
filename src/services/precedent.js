@@ -4,7 +4,8 @@
  * reuse the same logic without touching the UI.
  */
 import { kvs } from '@forge/kvs';
-import { listDecisions, getDecision, getVersion } from '../store/decisions.js';
+import { listDecisions, getDecision, getVersion, createDecision, markSuperseded } from '../store/decisions.js';
+import { todayUTC, validateRecordFields, validateSupersedeFields, buildSourceMeta } from '../lib/record-input.js';
 import { rankDecisions, searchDecisions } from '../lib/matcher.js';
 import { fetchIssue } from './jira.js';
 import { whoToAsk as twgWhoToAsk } from './teamwork-graph.js';
@@ -121,3 +122,77 @@ export const search = async (query, { limit = 5 } = {}) => {
 };
 
 export const detail = async (id) => present(await getDecision(id));
+
+/**
+ * Record a new decision via Rovo action / MCP / skill (or dev tooling).
+ * Required: title + decision. owner defaults to displayName or "unknown";
+ * decidedOn defaults to today UTC.
+ */
+export const recordDecision = async ({
+  title,
+  decision,
+  rationale,
+  owner,
+  decidedOn,
+  tags,
+  components,
+  conflictTerms,
+  issueKey,
+  accountId,
+  displayName,
+} = {}) => {
+  const err = validateRecordFields({ title, decision });
+  if (err) return { error: err };
+  const who = String(owner || displayName || '').trim() || 'unknown';
+  const when = String(decidedOn || '').trim() || todayUTC();
+  const meta = buildSourceMeta({ issueKey, accountId });
+  const created = await createDecision(
+    { title, decision, rationale, owner: who, decidedOn: when, tags, components, conflictTerms, status: 'active' },
+    meta,
+  );
+  return present(created);
+};
+
+/**
+ * Supersede an existing decision: create the new one, then mark the old as superseded.
+ * If the old id is missing, returns { error } without creating anything.
+ */
+export const supersedeDecision = async ({
+  decisionId,
+  title,
+  decision,
+  rationale,
+  owner,
+  decidedOn,
+  tags,
+  components,
+  conflictTerms,
+  issueKey,
+  accountId,
+  displayName,
+} = {}) => {
+  const err = validateSupersedeFields({ decisionId, title, decision });
+  if (err) return { error: err };
+  const old = await getDecision(decisionId);
+  if (!old) return { error: `No decision found with id ${decisionId}` };
+  const created = await recordDecision({
+    title,
+    decision,
+    rationale,
+    owner,
+    decidedOn,
+    tags,
+    components,
+    conflictTerms,
+    issueKey,
+    accountId,
+    displayName,
+  });
+  if (created.error) return created;
+  const previous = await markSuperseded(old.ref, created.id);
+  return {
+    previous: present(previous),
+    decision: created,
+  };
+};
+

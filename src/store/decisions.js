@@ -7,7 +7,7 @@
  *   title, decision, rationale, owner, decidedOn (YYYY-MM-DD)
  *   tags[], components[], conflictTerms (comma separated)
  *   status       "active" | "superseded"
- *   sourceType   "confluence" | "seed"
+ *   sourceType   "confluence" | "seed" | "jira" | "action"
  *   sourceKey    stable id of the origin (e.g. "<pageId>:<macroLocalId>")
  *   sourceUrl, sourceTitle, recordedBy (accountId), updatedAt (epoch seconds)
  */
@@ -62,6 +62,18 @@ export const normalizeDecision = (input) => ({
  * Create or update the decision that comes from a given source (idempotent).
  * Keeps the existing DEC-n reference when the record already exists.
  */
+/** Persist a decision entity: drop blank optionals (entity store rejects ""), then bump version. */
+const writeEntity = async (key, record) => {
+  for (const k of Object.keys(record)) if (record[k] === '') delete record[k];
+  await entity().set(key, record);
+  await bumpVersion();
+  return { key, ...record };
+};
+
+/**
+ * Create or update the decision that comes from a given source (idempotent).
+ * Keeps the existing DEC-n reference when the record already exists.
+ */
 export const upsertFromSource = async ({ sourceKey, sourceType, sourceUrl, sourceTitle, recordedBy }, input) => {
   const key = keyForSource(sourceKey);
   const existing = await entity().get(key);
@@ -75,13 +87,47 @@ export const upsertFromSource = async ({ sourceKey, sourceType, sourceUrl, sourc
     recordedBy: recordedBy || existing?.recordedBy || '',
     updatedAt: Math.floor(Date.now() / 1000), // epoch seconds (entity integers are 32-bit)
   };
-  // The entity store rejects empty strings, so drop blank optional attributes.
-  for (const k of Object.keys(record)) if (record[k] === '') delete record[k];
   // The macro re-syncs on every view: skip the write (and cache invalidation) when nothing changed.
   if (existing && sameContent(existing, record)) return { key, ...existing, unchanged: true };
-  await entity().set(key, record);
-  await bumpVersion();
-  return { key, ...record };
+  return writeEntity(key, record);
+};
+
+/**
+ * Allocate a new DEC-n and write it (used by record-decision / supersede-decision actions).
+ * `meta` must include a stable sourceKey; sourceType defaults to "action".
+ */
+export const createDecision = async (input, meta = {}) => {
+  const sourceKey = String(meta.sourceKey || '').trim();
+  if (!sourceKey) throw new Error('createDecision requires meta.sourceKey');
+  const key = keyForSource(sourceKey);
+  const record = {
+    ...normalizeDecision(input),
+    ref: await nextRef(),
+    sourceKey,
+    sourceType: meta.sourceType || 'action',
+    sourceUrl: meta.sourceUrl || '',
+    sourceTitle: meta.sourceTitle || '',
+    recordedBy: meta.recordedBy || '',
+    updatedAt: Math.floor(Date.now() / 1000),
+  };
+  return writeEntity(key, record);
+};
+
+/**
+ * Mark an existing decision as superseded by newRef.
+ * Returns the updated record, or undefined if oldRef is missing (no-op-safe).
+ */
+export const markSuperseded = async (oldRef, newRef) => {
+  const old = await getDecision(oldRef);
+  if (!old) return undefined;
+  const record = {
+    ...old,
+    status: 'superseded',
+    supersededBy: String(newRef || '').trim().slice(0, 40),
+    updatedAt: Math.floor(Date.now() / 1000),
+  };
+  delete record.key;
+  return writeEntity(old.key, record);
 };
 
 /** Read every decision (paged). Fine for v1 volumes (hundreds). */

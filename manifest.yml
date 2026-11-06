@@ -38,6 +38,10 @@ modules:
         - who-to-ask: for one decision, find who decided and who to ask now (page owners,
           creator, contributors, their teams, linked pages) from Atlassian Teamwork Graph.
           Use it when the user asks who to talk to, or after flagging a contradiction.
+        - record-decision: record a new decision when the user asks to capture one. Confirm
+          title and decision text; never invent content.
+        - supersede-decision: record a newer decision and mark an older one superseded when
+          the user asks to replace or update a past decision. Confirm fields; cite both ids.
         Follow the decision-check skill for the step-by-step review procedure.
 
         Rules:
@@ -47,6 +51,8 @@ modules:
           MAY contradict the decision, quote the relevant part of the decision, and suggest
           talking to the owner or recording a new decision that supersedes it.
         - Mention when a decision is superseded and point to the newer one.
+        - Only record or supersede via the tools, and only with content the user confirmed.
+          Never invent title, decision text, owner or date.
         - If nothing relevant is found, say so plainly.
         - Keep answers short: a one-line verdict, then a bullet per relevant decision.
       conversationStarters:
@@ -59,6 +65,8 @@ modules:
         - get-decision
         - check-issue
         - who-to-ask
+        - record-decision
+        - supersede-decision
       skills:
         - decision-check
 
@@ -73,6 +81,8 @@ modules:
           - get-decision
           - check-issue
           - who-to-ask
+          - record-decision
+          - supersede-decision
 
   # MCP server (Preview): exposes the same tools to Rovo Studio agents and, if an admin
   # allows it, to external MCP clients.
@@ -84,6 +94,8 @@ modules:
         - get-decision
         - check-issue
         - who-to-ask
+        - record-decision
+        - supersede-decision
 
   action:
     - key: search-decisions
@@ -135,6 +147,113 @@ modules:
           type: string
           required: false
           description: Optional Jira issue key; adds teams linked to that issue's project.
+    - key: record-decision
+      name: Record a decision
+      function: record-decision-fn
+      actionVerb: CREATE
+      description: Record a new team decision (title, what was decided, why, who, when). Optionally link it to a Jira issue. Never invent content; only record what the user confirms.
+      inputs:
+        title:
+          title: Title
+          type: string
+          required: true
+          description: Short title for the decision, e.g. "No new datastores without an ADR".
+        decision:
+          title: Decision
+          type: string
+          required: true
+          description: The decision itself - what the team agreed to do or not do.
+        rationale:
+          title: Rationale
+          type: string
+          required: false
+          description: Why the team decided this.
+        owner:
+          title: Owner
+          type: string
+          required: false
+          description: Who owns or decided this. Defaults to the current user when known.
+        decidedOn:
+          title: Decided on
+          type: string
+          required: false
+          description: Decision date as YYYY-MM-DD. Defaults to today (UTC) when omitted.
+        tags:
+          title: Tags
+          type: string
+          required: false
+          description: Comma-separated topic tags, e.g. "datastore, infrastructure".
+        components:
+          title: Components
+          type: string
+          required: false
+          description: Comma-separated component names this decision applies to.
+        conflictTerms:
+          title: Conflict terms
+          type: string
+          required: false
+          description: Comma-separated phrases that would contradict this decision.
+        issueKey:
+          title: Issue key
+          type: string
+          required: false
+          description: Optional Jira issue key to link as the source (uses the issue in context when omitted).
+    - key: supersede-decision
+      name: Supersede a decision
+      function: supersede-decision-fn
+      actionVerb: UPDATE
+      description: Record a newer decision and mark an older one as superseded by it. Requires the old decision id plus title and decision text for the new one. Never invent content.
+      inputs:
+        decisionId:
+          title: Old decision id
+          type: string
+          required: true
+          description: The decision id to supersede, for example DEC-3.
+        title:
+          title: Title
+          type: string
+          required: true
+          description: Short title for the newer decision.
+        decision:
+          title: Decision
+          type: string
+          required: true
+          description: The newer decision text.
+        rationale:
+          title: Rationale
+          type: string
+          required: false
+          description: Why this replaces the older decision.
+        owner:
+          title: Owner
+          type: string
+          required: false
+          description: Who owns or decided this. Defaults to the current user when known.
+        decidedOn:
+          title: Decided on
+          type: string
+          required: false
+          description: Decision date as YYYY-MM-DD. Defaults to today (UTC) when omitted.
+        tags:
+          title: Tags
+          type: string
+          required: false
+          description: Comma-separated topic tags.
+        components:
+          title: Components
+          type: string
+          required: false
+          description: Comma-separated component names.
+        conflictTerms:
+          title: Conflict terms
+          type: string
+          required: false
+          description: Comma-separated phrases that would contradict this decision.
+        issueKey:
+          title: Issue key
+          type: string
+          required: false
+          description: Optional Jira issue key to link as the source (uses the issue in context when omitted).
 
   # Keep the decision log in sync when Confluence pages change.
   trigger:
@@ -168,6 +287,10 @@ modules:
       handler: index.checkIssueAction
     - key: who-to-ask-fn
       handler: index.whoToAskAction
+    - key: record-decision-fn
+      handler: index.recordDecisionAction
+    - key: supersede-decision-fn
+      handler: index.supersedeDecisionAction
     - key: page-sync-fn
       handler: index.onPageEvent
     - key: issue-precompute-fn

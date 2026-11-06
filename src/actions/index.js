@@ -3,7 +3,7 @@
  * Each handler receives the action inputs plus a `context` object from Rovo.
  * Errors are returned as plain messages so the agent can explain them.
  */
-import { checkIssue, detail, search, whoToAsk } from '../services/precedent.js';
+import { checkIssue, detail, search, whoToAsk, recordDecision, supersedeDecision } from '../services/precedent.js';
 import { fetchIssue } from '../services/jira.js';
 
 const ISSUE_KEY = /\b[A-Z][A-Z0-9_]+-\d+\b/u;
@@ -16,6 +16,12 @@ const safe = (fn) => async (payload) => {
     return { error: String(e.message || e) };
   }
 };
+
+/** Pull accountId / displayName from Rovo context when present (never required). */
+const actorFrom = (context) => ({
+  accountId: context?.accountId || context?.userId || undefined,
+  displayName: context?.displayName || context?.userDisplayName || undefined,
+});
 
 /** search-decisions: free-text search across recorded decisions. */
 export const searchDecisionsAction = safe(async ({ query }) => {
@@ -51,4 +57,48 @@ export const whoToAskAction = safe(async (payload) => {
   let projectId;
   if (issueKey) projectId = (await fetchIssue(issueKey, 'user').catch(() => ({}))).projectId;
   return whoToAsk(id, { cloudId: payload.context?.cloudId, accountId: payload.context?.accountId, projectId });
+});
+
+/** record-decision: create a new active decision (optionally linked to a Jira issue). */
+export const recordDecisionAction = safe(async (payload) => {
+  const issueKey =
+    String(payload.issueKey || '').toUpperCase().match(ISSUE_KEY)?.[0] || payload.context?.jira?.issueKey;
+  const actor = actorFrom(payload.context);
+  return recordDecision({
+    title: payload.title,
+    decision: payload.decision,
+    rationale: payload.rationale,
+    owner: payload.owner,
+    decidedOn: payload.decidedOn,
+    tags: payload.tags,
+    components: payload.components,
+    conflictTerms: payload.conflictTerms,
+    issueKey,
+    accountId: actor.accountId,
+    displayName: actor.displayName,
+  });
+});
+
+/**
+ * supersede-decision: record a new decision and mark the old one supersededBy it.
+ * Requires decisionId of the OLD decision plus title + decision for the NEW one.
+ */
+export const supersedeDecisionAction = safe(async (payload) => {
+  const issueKey =
+    String(payload.issueKey || '').toUpperCase().match(ISSUE_KEY)?.[0] || payload.context?.jira?.issueKey;
+  const actor = actorFrom(payload.context);
+  return supersedeDecision({
+    decisionId: payload.decisionId,
+    title: payload.title,
+    decision: payload.decision,
+    rationale: payload.rationale,
+    owner: payload.owner,
+    decidedOn: payload.decidedOn,
+    tags: payload.tags,
+    components: payload.components,
+    conflictTerms: payload.conflictTerms,
+    issueKey,
+    accountId: actor.accountId,
+    displayName: actor.displayName,
+  });
 });

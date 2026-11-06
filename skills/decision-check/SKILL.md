@@ -1,9 +1,9 @@
 ---
 name: decision-check
-description: Check planned work against a team's recorded engineering decisions before it is built. Use when someone asks "has this been decided before?", when reviewing or refining a Jira issue, or when a change might contradict an earlier decision (for example switching a datastore, changing an API version, or relaxing a security rule). Finds related decisions, flags possible contradictions, and names who decided and who to ask now.
+description: Check planned work against a team's recorded engineering decisions before it is built. Use when someone asks "has this been decided before?", when reviewing or refining a Jira issue, or when a change might contradict an earlier decision (for example switching a datastore, changing an API version, or relaxing a security rule). Finds related decisions, flags possible contradictions, and names who decided and who to ask now. Also use when the user asks to record a new decision or to supersede an older one.
 license: MIT
 compatibility: Needs the Precedent tools (Forge app "Precedent", also exposed through its Rovo MCP server).
-allowed-tools: search-decisions get-decision check-issue who-to-ask
+allowed-tools: search-decisions get-decision check-issue who-to-ask record-decision supersede-decision
 ---
 
 # Decision check
@@ -49,4 +49,18 @@ Keep it short:
 2. One bullet per relevant decision: id, title, what was decided, who decided and
    when, and the source link.
 3. For contradictions: who to ask, and the two options - change the plan, or record
-   a new decision that supersedes the old one (Confluence "Decision record" macro).
+   a new decision that supersedes the old one (use `supersede-decision`, or the
+   Confluence "Decision record" macro).
+
+## 5. Record or supersede (only when the user asks)
+
+- Never invent title, decision text, owner, date, tags, or conflict terms. Confirm
+  the fields with the user before calling a write tool.
+- To capture a new decision: call `record-decision` with at least `title` and
+  `decision`. Pass `issueKey` when recording from an issue (or omit it so the
+  issue in context is used). Reply with the new decision id.
+- To replace an older decision: call `supersede-decision` with the old
+  `decisionId` plus `title` and `decision` for the new one. After it succeeds,
+  cite both ids (old now `superseded`, new `active` with `previous.supersededBy`
+  pointing at the new id).
+- If a tool returns `error`, explain it and ask for the missing field; do not guess.

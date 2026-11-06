@@ -10,13 +10,15 @@
  *   GET  ?op=sync&page=ID      re-sync one Confluence page
  *   GET  ?op=page-info[&page=ID]     page author/status/version + view/edit restrictions
  *   POST ?op=make-editable[&page=ID] clear blocking edit restrictions (probe v1 APIs)
+ *   POST ?op=record   body/query: title, decision, rationale?, owner?, decidedOn?, tags?, issueKey?
+ *   POST ?op=supersede body/query: decisionId, title, decision, (+ same optionals as record)
  *
  * page-info / make-editable default to the seeded demo page (KVS seed:page, else 3178497).
  */
 import api, { route } from '@forge/api';
 import { kvs } from '@forge/kvs';
-import { listDecisions, upsertFromSource, bumpVersion } from '../store/decisions.js';
-import { checkIssue, search, present, precomputeIssue } from '../services/precedent.js';
+import { listDecisions, upsertFromSource, bumpVersion, getDecision } from '../store/decisions.js';
+import { checkIssue, search, present, precomputeIssue, recordDecision, supersedeDecision } from '../services/precedent.js';
 import { MACRO_MODULE_KEY, syncPage, pageInfo, makeEditable } from '../services/confluence.js';
 import { DEMO_DECISIONS, DEMO_ISSUES } from '../seed/demo-data.js';
 
@@ -26,6 +28,23 @@ const json = (statusCode, body) => ({
   body: JSON.stringify(body, null, 2),
 });
 const q = (req, name) => req.queryParameters?.[name]?.[0];
+/** Merge JSON body (if any) with query params; query wins for overlapping keys. */
+const bodyOf = (req) => {
+  try {
+    const raw = req.body;
+    if (!raw) return {};
+    if (typeof raw === 'object' && !Buffer.isBuffer(raw)) return raw;
+    const s = String(raw).trim();
+    return s ? JSON.parse(s) : {};
+  } catch {
+    return {};
+  }
+};
+const field = (req, body, name) => {
+  const fromQ = q(req, name);
+  if (fromQ !== undefined && fromQ !== '') return fromQ;
+  return body?.[name];
+};
 const randomId = () => 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/gu, () => Math.floor(Math.random() * 16).toString(16));
 
 const para = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
@@ -194,6 +213,30 @@ export const devtools = async (req, context) => {
       const pageId = q(req, 'page') || seed?.id || '3178497';
       if (op === 'page-info') return json(200, await pageInfo(pageId));
       return json(200, await makeEditable(pageId));
+    }
+    if (op === 'record' || op === 'supersede') {
+      const body = bodyOf(req);
+      const payload = {
+        title: field(req, body, 'title'),
+        decision: field(req, body, 'decision'),
+        rationale: field(req, body, 'rationale'),
+        owner: field(req, body, 'owner'),
+        decidedOn: field(req, body, 'decidedOn'),
+        tags: field(req, body, 'tags'),
+        components: field(req, body, 'components'),
+        conflictTerms: field(req, body, 'conflictTerms'),
+        issueKey: field(req, body, 'issueKey'),
+        accountId: field(req, body, 'accountId'),
+        displayName: field(req, body, 'displayName') || 'dev-smoke',
+      };
+      if (op === 'record') return json(200, await recordDecision(payload));
+      payload.decisionId = field(req, body, 'decisionId');
+      return json(200, await supersedeDecision(payload));
+    }
+    if (op === 'get') {
+      const id = q(req, 'id') || q(req, 'decisionId');
+      const d = await getDecision(id);
+      return json(200, d ? present(d) : { error: `No decision found with id ${id}` });
     }
     return json(400, { error: `unknown op ${op}` });
   } catch (e) {
