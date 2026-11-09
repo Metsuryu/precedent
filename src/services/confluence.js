@@ -210,7 +210,25 @@ export const claimPageAsUser = async (pageId, displayName) => {
     }),
   });
   if (!putRes.ok) {
-    return { ok: false, error: `update page HTTP ${putRes.status}: ${(await putRes.text()).slice(0, 400)}` };
+    const putErr = `update page HTTP ${putRes.status}: ${(await putRes.text()).slice(0, 200)}`;
+    // Likely the human lacks edit permission in the space (Confluence answers 404). Fall back to a
+    // human-authored child page, which still makes the human a Teamwork Graph contributor.
+    const crRes = await api.asUser().requestConfluence(route`/wiki/api/v2/pages`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        spaceId: String(page.spaceId),
+        status: 'current',
+        parentId: String(pageId),
+        title: `${page.title} - claimed by ${displayName || 'teammate'} ${date}`,
+        body: { representation: 'atlas_doc_format', value: JSON.stringify(adf) },
+      }),
+    });
+    if (!crRes.ok) {
+      return { ok: false, error: `${putErr}; fallback create child HTTP ${crRes.status}: ${(await crRes.text()).slice(0, 200)}. The signed-in user probably lacks edit/create permission in this Confluence space.` };
+    }
+    const child = await crRes.json();
+    return { ok: true, fallback: 'child-page', pageId: String(child.id), title: child.title, version: child.version?.number, note, authorId: child.authorId, versionAuthorId: child.version?.authorId };
   }
   const updated = await putRes.json();
   return {
