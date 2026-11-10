@@ -5,8 +5,9 @@
 import Resolver from '@forge/resolver';
 import api, { route } from '@forge/api';
 import { kvs } from '@forge/kvs';
-import { upsertFromSource } from '../store/decisions.js';
-import { checkIssueCached, whoToAsk } from '../services/precedent.js';
+import { upsertFromSource, listDecisions } from '../store/decisions.js';
+import { checkIssueCached, whoToAsk, present } from '../services/precedent.js';
+import { filterLog, allTags, logCounts } from '../lib/log-filter.js';
 import { claimPageAsUser } from '../services/confluence.js';
 
 const resolver = new Resolver();
@@ -110,6 +111,17 @@ resolver.define('claimDemoPage', async ({ context }) => {
     note: result.note,
     displayName,
   };
+});
+
+/** Jira global page "Decision log": search + status/tag filters over every decision. */
+resolver.define('getDecisionLog', async ({ payload }) => {
+  const all = await listDecisions();
+  const rows = filterLog(all, {
+    query: String(payload?.query || '').slice(0, 200),
+    status: ['all', 'active', 'superseded'].includes(payload?.status) ? payload.status : 'all',
+    tag: String(payload?.tag || ''),
+  });
+  return { counts: logCounts(all), tags: allTags(all), decisions: rows.slice(0, 100).map(present), truncated: rows.length > 100 };
 });
 
 export const handler = resolver.getDefinitions();

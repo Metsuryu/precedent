@@ -20,6 +20,16 @@ modules:
       title: Precedent
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
 
+  # Jira: one place to browse, search and filter every recorded decision.
+  jira:globalPage:
+    - key: precedent-decision-log
+      resource: decision-log
+      resolver:
+        function: resolver
+      render: native
+      title: Decision log
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+
   # Rovo agent + reusable actions.
   rovo:agent:
     - key: precedent-agent
@@ -303,6 +313,8 @@ resources:
     path: src/frontend/macro.jsx
   - key: issue-panel
     path: src/frontend/issue-panel.jsx
+  - key: decision-log
+    path: src/frontend/decision-log.jsx
 
 permissions:
   scopes:
