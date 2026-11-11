@@ -6,7 +6,8 @@ import Resolver from '@forge/resolver';
 import api, { route } from '@forge/api';
 import { kvs } from '@forge/kvs';
 import { upsertFromSource, listDecisions } from '../store/decisions.js';
-import { checkIssueCached, whoToAsk, present } from '../services/precedent.js';
+import { checkIssueCached, whoToAsk, present, recordDecision, supersedeDecision } from '../services/precedent.js';
+import { formToInput } from '../lib/record-input.js';
 import { filterLog, allTags, logCounts } from '../lib/log-filter.js';
 import { claimPageAsUser } from '../services/confluence.js';
 
@@ -122,6 +123,37 @@ resolver.define('getDecisionLog', async ({ payload }) => {
     tag: String(payload?.tag || ''),
   });
   return { counts: logCounts(all), tags: allTags(all), decisions: rows.slice(0, 100).map(present), truncated: rows.length > 100 };
+});
+
+/** Best-effort display name of the signed-in user (no extra scopes: uses read:confluence-user). */
+const currentDisplayName = async (context) => {
+  try {
+    const res = await api.asUser().requestConfluence(route`/wiki/rest/api/user/current`);
+    if (res.ok) {
+      const me = await res.json();
+      return me.displayName || me.publicName || context.displayName || '';
+    }
+  } catch (_) {
+    // ignore; owner falls back to "unknown"
+  }
+  return context.displayName || '';
+};
+
+/** Decision log page: record a new decision from the modal form. */
+resolver.define('recordFromLog', async ({ payload, context }) => {
+  const { input, error } = formToInput(payload?.form);
+  if (error) return { error };
+  const displayName = input.owner ? '' : await currentDisplayName(context);
+  return recordDecision({ ...input, accountId: context.accountId, displayName });
+});
+
+/** Decision log page: supersede an existing decision with a new one. */
+resolver.define('supersedeFromLog', async ({ payload, context }) => {
+  const { input, error } = formToInput(payload?.form, { supersede: true });
+  if (error) return { error };
+  const displayName = input.owner ? '' : await currentDisplayName(context);
+  const res = await supersedeDecision({ ...input, accountId: context.accountId, displayName });
+  return res.error ? res : { ...res.decision, supersedes: res.previous?.id || input.decisionId };
 });
 
 export const handler = resolver.getDefinitions();

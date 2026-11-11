@@ -43,3 +43,30 @@ export const buildSourceMeta = ({ issueKey, accountId, unique } = {}) => {
     recordedBy: accountId || '',
   };
 };
+
+const ISSUE_KEY = /^[A-Z][A-Z0-9_]+-\d+$/;
+
+/**
+ * Turn the Decision log page's record/supersede form into service input.
+ * Trims and caps every field, uppercases + validates the optional issue key,
+ * and returns { input } or { error } (never throws).
+ */
+export const formToInput = (form = {}, { supersede = false } = {}) => {
+  const cap = (v, n) => String(v ?? '').trim().slice(0, n);
+  const input = {
+    title: cap(form.title, 200),
+    decision: cap(form.decision, 2000),
+    rationale: cap(form.rationale, 4000),
+    owner: cap(form.owner, 120),
+    decidedOn: cap(form.decidedOn, 10),
+    tags: cap(form.tags, 300),
+    issueKey: cap(form.issueKey, 40).toUpperCase(),
+  };
+  if (supersede) input.decisionId = cap(form.decisionId, 20).toUpperCase();
+  if (input.decidedOn && !/^\d{4}-\d{2}-\d{2}$/.test(input.decidedOn)) return { error: 'Use YYYY-MM-DD for the decision date.' };
+  if (input.issueKey && !ISSUE_KEY.test(input.issueKey)) return { error: `"${input.issueKey}" is not a Jira issue key, e.g. MOBL-58.` };
+  const err = supersede ? validateSupersedeFields(input) : validateRecordFields(input);
+  if (err) return { error: err };
+  for (const k of Object.keys(input)) if (input[k] === '') delete input[k];
+  return { input };
+};

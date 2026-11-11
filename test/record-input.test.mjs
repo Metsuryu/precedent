@@ -55,3 +55,18 @@ test('normalizeDecision defaults status and strips length', () => {
   assert.equal(n.conflictTerms, 'no redis, no mongo');
   assert.equal(n.supersededBy, '');
 });
+
+import { formToInput } from '../src/lib/record-input.js';
+
+test('formToInput trims, uppercases issue key, drops empties', () => {
+  const r = formToInput({ title: ' Use Postgres ', decision: 'Postgres for orders', issueKey: 'mobl-58', tags: '', owner: ' ' });
+  assert.deepEqual(r, { input: { title: 'Use Postgres', decision: 'Postgres for orders', issueKey: 'MOBL-58' } });
+});
+
+test('formToInput validates required fields, date and issue key', () => {
+  assert.match(formToInput({ decision: 'x' }).error, /title/);
+  assert.match(formToInput({ title: 't', decision: 'd', decidedOn: '11/11/2026' }).error, /YYYY-MM-DD/);
+  assert.match(formToInput({ title: 't', decision: 'd', issueKey: 'not a key' }).error, /issue key/);
+  assert.match(formToInput({ title: 't', decision: 'd' }, { supersede: true }).error, /supersede/);
+  assert.equal(formToInput({ decisionId: 'dec-3', title: 't', decision: 'd' }, { supersede: true }).input.decisionId, 'DEC-3');
+});
