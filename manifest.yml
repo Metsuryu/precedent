@@ -279,12 +279,14 @@ modules:
         - avi:jira:created:issue
         - avi:jira:updated:issue
 
+  # >>> dev-only (stripped by scripts/deploy-prod.sh; keeps "Runs on Atlassian")
   # Development-only tooling (seed + backend checks). Guarded by DEV_KEY.
   webtrigger:
     - key: precedent-devtools
       function: devtools-fn
       response:
         type: dynamic
+  # <<< dev-only
 
   function:
     - key: resolver
@@ -305,8 +307,10 @@ modules:
       handler: index.onPageEvent
     - key: issue-precompute-fn
       handler: index.onIssueEvent
+    # >>> dev-only
     - key: devtools-fn
       handler: index.devtools
+    # <<< dev-only
 
 resources:
   - key: macro
