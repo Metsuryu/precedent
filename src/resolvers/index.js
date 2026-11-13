@@ -10,6 +10,7 @@ import { checkIssueCached, whoToAsk, present, recordDecision, supersedeDecision 
 import { formToInput } from '../lib/record-input.js';
 import { filterLog, allTags, logCounts } from '../lib/log-filter.js';
 import { claimPageAsUser } from '../services/confluence.js';
+import { DEMO_DECISIONS } from '../seed/demo-data.js';
 
 const resolver = new Resolver();
 
@@ -154,6 +155,20 @@ resolver.define('supersedeFromLog', async ({ payload, context }) => {
   const displayName = input.owner ? '' : await currentDisplayName(context);
   const res = await supersedeDecision({ ...input, accountId: context.accountId, displayName });
   return res.error ? res : { ...res.decision, supersedes: res.previous?.id || input.decisionId };
+});
+
+/**
+ * Decision log page, first run: load the fictional "Lumen Freight" sample decisions so a fresh
+ * (production) install is demo-ready without the dev-only web trigger. Only allowed while the
+ * store is empty; idempotent because each sample uses a stable sourceKey.
+ */
+resolver.define('loadSampleDecisions', async () => {
+  const existing = await listDecisions();
+  if (existing.length > 0) return { error: 'Sample decisions can only be loaded into an empty decision log.' };
+  for (const [i, d] of DEMO_DECISIONS.entries()) {
+    await upsertFromSource({ sourceKey: `sample:${i + 1}`, sourceType: 'seed', sourceTitle: 'Sample data (Lumen Freight, fictional)' }, d);
+  }
+  return { loaded: DEMO_DECISIONS.length };
 });
 
 export const handler = resolver.getDefinitions();

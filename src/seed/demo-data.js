@@ -1,6 +1,6 @@
 /**
  * Neutral, fictional demo data for "Lumen Freight" (an invented company).
- * Used only by the dev tooling to populate a test site.
+ * Used by the dev tooling and by the Decision log "Load sample decisions" button (empty log only).
  */
 export const DEMO_DECISIONS = [
   {

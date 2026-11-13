@@ -140,6 +140,22 @@ const App = () => {
     load();
   };
 
+  const [seeding, setSeeding] = useState(false);
+  const loadSamples = async () => {
+    setSeeding(true);
+    setNotice(null);
+    try {
+      const res = await invoke('loadSampleDecisions');
+      if (res?.error) setError(res.error);
+      else setNotice(`Loaded ${res.loaded} sample decisions.`);
+      await load();
+    } catch (e) {
+      setError(String(e?.message || e));
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const load = async (q = query, s = status, t = tag) => {
     setLoading(true);
     setError(null);
@@ -204,6 +220,12 @@ const App = () => {
                 : 'Add a "Decision record" macro to a Confluence page, or ask the Precedent Rovo agent to record one.'
             }
           />
+        )}
+        {data && !filtered && data.counts?.total === 0 && (
+          <Inline space="space.100" alignBlock="center">
+            <Button isDisabled={seeding} onClick={loadSamples}>{seeding ? 'Loading…' : 'Load sample decisions'}</Button>
+            <Text size="small">Adds fictional "Lumen Freight" decisions so you can try search, conflict checks and Rovo.</Text>
+          </Inline>
         )}
         {data && data.decisions.length > 0 && (
           <DynamicTable head={head} rows={data.decisions.map((d) => toRow(d, openForm))} isLoading={loading} rowsPerPage={20} />
