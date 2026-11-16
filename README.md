@@ -69,6 +69,10 @@ Forge variables in the development environment and a web trigger URL):
 The dev web trigger must be removed from production builds (it also blocks
 "Runs on Atlassian" eligibility).
 
+## Demo
+
+Video script and storyboard: [docs/DEMO.md](docs/DEMO.md).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
