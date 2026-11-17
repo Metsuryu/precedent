@@ -71,7 +71,7 @@ The dev web trigger must be removed from production builds (it also blocks
 
 ## Demo
 
-Video script and storyboard: [docs/DEMO.md](docs/DEMO.md).
+Video script and storyboard: [docs/DEMO.md](docs/DEMO.md). Devpost write-up draft: [docs/DEVPOST.md](docs/DEVPOST.md).
 
 ## License
 
