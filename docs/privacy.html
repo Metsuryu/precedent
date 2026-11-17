@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Precedent — Privacy Policy</title>
+  <meta name="description" content="Privacy policy for Precedent, a Forge app that stores team decision records on Atlassian.">
+  <style>
+    :root {
+      color-scheme: light;
+      --text: #1c1917;
+      --muted: #57534e;
+      --border: #e7e5e4;
+      --bg: #fafaf9;
+      --card: #ffffff;
+      --link: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+    }
+    header, main, footer {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+    header {
+      padding-top: 3rem;
+      padding-bottom: 1.5rem;
+    }
+    .kicker {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 0.5rem;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      line-height: 1.2;
+      margin: 0 0 0.75rem;
+    }
+    .updated {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin: 0;
+    }
+    main {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.75rem 1.25rem 2rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin: 1.75rem 0 0.5rem;
+    }
+    h2:first-child { margin-top: 0; }
+    p, li { font-size: 1.05rem; }
+    p { margin: 0 0 1rem; }
+    ul { margin: 0 0 1rem; padding-left: 1.25rem; }
+    a { color: var(--link); }
+    footer {
+      padding: 1.5rem 1.25rem 3rem;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">Precedent</p>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: 17 November 2026</p>
+  </header>
+  <main>
+    <p>Precedent is a Forge app for Jira and Confluence that helps teams record and recall decisions. It is designed to run entirely on Atlassian Forge and to meet Atlassian’s “Runs on Atlassian” requirements. The production app does not declare any external egress and does not call third-party services.</p>
+
+    <h2>Where data is stored</h2>
+    <p>Decision records are stored only in Forge storage (the Forge Custom Entity Store) within your organization’s Atlassian site. Matching is done inside the app. There is no external AI provider, and the app does not use tracking or analytics.</p>
+    <p>If you add a Decision record macro, or use a feature that updates a Confluence page, that content is also saved as ordinary content in your Atlassian site. It does not leave Atlassian.</p>
+
+    <h2>What the app stores</h2>
+    <p>A decision record may include a title, decision text, rationale, owner name, date, tags, source page or issue links, and the Atlassian account of the person who recorded it. The app may also keep short-lived caches of issue-match results and related people or team details looked up through Atlassian Teamwork Graph. All of this stays in Forge storage on your site.</p>
+
+    <h2>What the app does not do</h2>
+    <p>The app does not send personal data to services outside Atlassian. It does not use cookies, tracking pixels, or analytics.</p>
+    <p>If an organization admin enables Precedent’s MCP server for an external MCP client, that client can query decision records through Atlassian’s MCP interface. The app itself does not transmit that data to third parties.</p>
+
+    <h2>When the app is uninstalled</h2>
+    <p>When Precedent is uninstalled, Atlassian deletes the app’s Forge storage, including decision records kept there, in line with Forge’s standard uninstall behavior. Content already saved in Confluence or Jira (for example, Decision record macros on pages) remains in your site.</p>
+
+    <h2 id="support">Contact and support</h2>
+    <p>For privacy questions or support, email <a href="mailto:mariocannistra-work-2b2q31@mail.grokbot.com">mariocannistra-work-2b2q31@mail.grokbot.com</a>.</p>
+  </main>
+  <footer>
+    Precedent is a Forge app. This page describes the app, not Atlassian’s own services.
+  </footer>
+</body>
+</html>
