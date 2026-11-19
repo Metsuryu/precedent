@@ -9,6 +9,7 @@ import ForgeReconciler, {
   Stack, Text, TextArea, Textfield, useForm, xcss,
 } from '@forge/react';
 import { invoke } from '@forge/bridge';
+import { countsLine, statusBadge } from '../lib/ui.js';
 
 const STATUS = [
   { label: 'All statuses', value: 'all' },
@@ -39,23 +40,22 @@ const toRow = (d, onSupersede) => ({
         <Stack space="space.025">
           <Text weight="bold">{d.title}</Text>
           <Text>{d.decision}</Text>
-          {asText(d.tags) && <Text size="small" color="color.text.subtlest">Tags: {asText(d.tags)}</Text>}
+          {asText(d.tags) && <Text size="small" color="color.text.subtlest">{asText(d.tags)}</Text>}
         </Stack>
       ),
     },
-    { key: 'owner', content: d.owner || 'unknown' },
+    { key: 'owner', content: d.owner || <Text color="color.text.subtlest">Unknown</Text> },
     { key: 'date', content: d.decidedOn || '' },
     {
       key: 'status',
-      content:
-        d.status === 'superseded' ? (
-          <Lozenge appearance="moved">Superseded{d.supersededBy ? ` by ${d.supersededBy}` : ''}</Lozenge>
-        ) : (
-          <Stack space="space.050">
-            <Lozenge appearance="success">Active</Lozenge>
+      content: (
+        <Stack space="space.050">
+          <Lozenge appearance={statusBadge(d).appearance}>{statusBadge(d).text}</Lozenge>
+          {d.status !== 'superseded' && (
             <Button appearance="subtle" spacing="compact" onClick={() => onSupersede(d)}>Supersede</Button>
-          </Stack>
-        ),
+          )}
+        </Stack>
+      ),
     },
     { key: 'source', content: d.source?.url ? <Link href={d.source.url} openNewTab>{d.source.title || 'Open'}</Link> : '' },
   ],
@@ -98,7 +98,11 @@ const DecisionForm = ({ target, onClose, onSaved }) => {
         </ModalHeader>
         <ModalBody>
           <FormSection>
-            {target && <Text>Replaces: {target.title}. {target.id} will be marked superseded.</Text>}
+            {target && (
+              <SectionMessage appearance="information">
+                <Text>Replaces {target.id}: {target.title}. {target.id} will be marked superseded.</Text>
+              </SectionMessage>
+            )}
             {FIELDS.map((f) => (
               <Box key={f.name}>
                 <Label labelFor={getFieldId(f.name)}>{f.label}{f.required ? ' *' : ''}</Label>
@@ -177,14 +181,16 @@ const App = () => {
     <Box xcss={pageStyle}>
       <Stack space="space.200">
         <Inline spread="space-between" alignBlock="center">
-          <Heading size="large">Decision log</Heading>
+          <Stack space="space.050">
+            <Heading size="large">Decision log</Heading>
+            <Text color="color.text.subtle">
+              Decisions recorded from Confluence, Rovo and Jira.
+              {data?.counts ? ` ${countsLine(data.counts)}.` : ''}
+            </Text>
+          </Stack>
           <Button appearance="primary" onClick={() => openForm()}>Record decision</Button>
         </Inline>
         {notice && <SectionMessage appearance="success"><Text>{notice}</Text></SectionMessage>}
-        <Text>
-          Every decision your team recorded with Precedent: from Confluence decision records, Rovo, and Jira.
-          {data?.counts ? ` ${data.counts.total} total, ${data.counts.active} active, ${data.counts.superseded} superseded.` : ''}
-        </Text>
         <Inline space="space.100" alignBlock="end" shouldWrap>
           <Box xcss={xcss({ width: '320px' })}>
             <Textfield
@@ -209,28 +215,40 @@ const App = () => {
             </Button>
           )}
         </Inline>
-        {error && <SectionMessage appearance="error" title="Could not load decisions"><Text>{error}</Text></SectionMessage>}
-        {!data && !error && <Spinner label="Loading decisions" />}
+        {error && (
+          <SectionMessage appearance="error" title="Couldn't load decisions">
+            <Stack space="space.100">
+              <Text>{error}</Text>
+              <Inline><Button onClick={() => load()}>Try again</Button></Inline>
+            </Stack>
+          </SectionMessage>
+        )}
+        {!data && !error && (
+          <Inline space="space.100" alignBlock="center">
+            <Spinner size="small" label="Loading decisions" />
+            <Text color="color.text.subtle">Loading decisions…</Text>
+          </Inline>
+        )}
         {data && data.decisions.length === 0 && (
           <EmptyState
             header={filtered ? 'No decisions match' : 'No decisions recorded yet'}
             description={
               filtered
                 ? 'Try fewer keywords or clear the filters.'
-                : 'Add a "Decision record" macro to a Confluence page, or ask the Precedent Rovo agent to record one.'
+                : 'Record one here, add a "Decision record" macro to a Confluence page, or ask the Precedent Rovo agent.'
             }
           />
         )}
         {data && !filtered && data.counts?.total === 0 && (
           <Inline space="space.100" alignBlock="center">
-            <Button isDisabled={seeding} onClick={loadSamples}>{seeding ? 'Loading…' : 'Load sample decisions'}</Button>
-            <Text size="small">Adds fictional "Lumen Freight" decisions so you can try search, conflict checks and Rovo.</Text>
+            <Button appearance="primary" isDisabled={seeding} onClick={loadSamples}>{seeding ? 'Loading…' : 'Load sample decisions'}</Button>
+            <Text size="small" color="color.text.subtle">Adds fictional "Lumen Freight" decisions so you can try search, conflict checks and Rovo.</Text>
           </Inline>
         )}
         {data && data.decisions.length > 0 && (
           <DynamicTable head={head} rows={data.decisions.map((d) => toRow(d, openForm))} isLoading={loading} rowsPerPage={20} />
         )}
-        {data?.truncated && <Text size="small">Showing the first 100 matches. Narrow the search to see more.</Text>}
+        {data?.truncated && <Text size="small" color="color.text.subtle">Showing the first 100 matches. Narrow the search to see more.</Text>}
       </Stack>
       <ModalTransition>
         {formOpen && <DecisionForm target={target} onClose={() => setFormOpen(false)} onSaved={onSaved} />}
