@@ -7,6 +7,7 @@ export {
   whoToAskAction,
   recordDecisionAction,
   supersedeDecisionAction,
+  postDecisionContextAction,
 } from './actions/index.js';
 export { onPageEvent } from './triggers/confluence.js';
 export { onIssueEvent } from './triggers/jira.js';

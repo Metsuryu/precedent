@@ -24,3 +24,15 @@ export const fetchIssue = async (issueIdOrKey, mode = 'user') => {
     projectId: f.project?.id,
   };
 };
+
+/** Add an ADF comment to an issue as the current user (respects their permissions). */
+export const addComment = async (issueIdOrKey, adf) => {
+  const res = await api.asUser().requestJira(route`/rest/api/3/issue/${issueIdOrKey}/comment`, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body: adf }),
+  });
+  if (!res.ok) throw new Error(`Comment on ${issueIdOrKey}: HTTP ${res.status}`);
+  const data = await res.json();
+  return { id: data.id };
+};

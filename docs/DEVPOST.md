@@ -88,9 +88,9 @@ superseded decision is still referenced, Jira Service Management support, and a
 ## Bonus write-ups
 
 ### Agents
-Precedent ships a `rovo:agent` ("Precedent") plus six reusable `action` modules and a
+Precedent ships a `rovo:agent` ("Precedent") plus seven reusable `action` modules and a
 `rovo:skill` (`decision-check`). Any Rovo agent can call search-decisions, check-issue or
-who-to-ask to check work against past decisions, and record-decision / supersede-decision
+who-to-ask to check work against past decisions, post-decision-context to leave a "Decision context" comment on the issue, and record-decision / supersede-decision
 to keep the log current.
 
 ### MCP

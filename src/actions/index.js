@@ -4,7 +4,8 @@
  * Errors are returned as plain messages so the agent can explain them.
  */
 import { checkIssue, detail, search, whoToAsk, recordDecision, supersedeDecision } from '../services/precedent.js';
-import { fetchIssue } from '../services/jira.js';
+import { fetchIssue, addComment } from '../services/jira.js';
+import { buildContextComment } from '../lib/context-comment.js';
 
 const ISSUE_KEY = /\b[A-Z][A-Z0-9_]+-\d+\b/u;
 
@@ -101,4 +102,19 @@ export const supersedeDecisionAction = safe(async (payload) => {
     accountId: actor.accountId,
     displayName: actor.displayName,
   });
+});
+
+/**
+ * post-decision-context: check an issue against past decisions and post the result
+ * as a "Decision context" comment on that issue, as the current user.
+ * The agent only calls this after the user asked for / confirmed the comment.
+ */
+export const postDecisionContextAction = safe(async (payload) => {
+  const fromInput = String(payload.issueKey || '').toUpperCase().match(ISSUE_KEY)?.[0];
+  const key = fromInput || payload.context?.jira?.issueKey;
+  if (!key) return { error: 'Provide a Jira issue key such as PROJ-123.' };
+  const result = await checkIssue(key, { mode: 'user', limit: 5 });
+  const { adf, summary, count } = buildContextComment(result, { note: payload.note });
+  const { id } = await addComment(key, adf);
+  return { issueKey: key, commentId: id, summary, decisionsCited: count, ids: result.matches.slice(0, 5).map((x) => x.id) };
 });
