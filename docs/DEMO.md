@@ -17,6 +17,7 @@ Narration pace ≈ 140 words/min. Word counts per scene are budgets.
 - [ ] Rovo chat has the **Precedent** agent; a test prompt answers within ~10 s.
 - [ ] Confluence page with the DEC-1 Decision record macro is editable by the signed-in human.
 - [ ] Rovo Studio shows Precedent's tools (MCP / connected app) for scene 5.
+- [ ] Delete any earlier "Decision context (Precedent)" comments on MOBL-58 so the scene-4 comment is the only one.
 - [ ] Delete any smoke-test decisions created during browser checks (or re-seed) so ids match this script.
 
 ## Scenes
@@ -48,18 +49,20 @@ exactly why it matched and where it was decided. Matching is deterministic: keyw
 components and the decision's own 'rules out' phrases, so results are explainable and
 precomputed when the issue changes. And on an unrelated ticket, Precedent stays quiet."
 
-### 4. Ask Rovo — 1:25–2:05 (~90 words)
+### 4. Ask Rovo — 1:25–2:05 (~95 words)
 **Shot:** Rovo chat → agent **Precedent** → starter "Does this issue contradict any past
 decisions?" with MOBL-58 → answer cites DEC-1 with owner, date, link. Then "Who should I ask?"
 → who-to-ask answer (page owner/contributors/teams via Teamwork Graph; if TWG is unavailable
 on the site, the answer falls back to the recorded owner — trim this line if so).
-Then "Record a decision: Search uses the existing Postgres full-text index" → confirm →
-"Supersede" demo optional if time allows.
+Then "Post a decision context comment" → agent confirms → the issue gets a comment
+"Decision context (Precedent)" with a yellow warning panel citing DEC-1 (cut to the comment
+on MOBL-58 for ~3 s). Then "Record a decision: Search uses the existing Postgres full-text
+index" → confirm → "Supersede" demo optional if time allows (cut first if over 3:00).
 **VO:** "The same memory powers a Rovo agent. Ask whether this issue contradicts anything,
 and it cites the decision, who made it and when. Ask who to talk to, and it reads the
-Teamwork Graph: the page owners, contributors and their teams. When the team settles
-something new, the agent records it, or supersedes the old decision, so the log stays
-current."
+Teamwork Graph: the page owners, contributors and their teams. With one confirmation, it
+posts that context as a comment on the issue for the whole team. When the team settles
+something new, the agent records it, or supersedes the old decision."
 
 ### 5. Decision log + reuse everywhere (MCP, skill) — 2:05–2:40 (~75 words)
 **Shot:** Jira → Apps → **Decision log**: counts, search "datastore", status filter
@@ -67,7 +70,7 @@ Superseded → DEC-8 "Superseded by DEC-9" (dev-site ids; verify on the day); cl
 Then Rovo Studio showing Precedent's tools available to other agents (MCP server
 `precedent-mcp`) and the GitHub file `skills/decision-check/SKILL.md`.
 **VO:** "Admins get a searchable decision log, with record and supersede built in. And
-Precedent isn't locked inside one agent: its six actions ship as a reusable Rovo skill and
+Precedent isn't locked inside one agent: its seven actions ship as a reusable Rovo skill and
 as tools on a Forge MCP server, so any Rovo Studio agent, or an approved MCP client, can
 check work against your team's decisions. The procedure is published as an open agent skill."
 
@@ -86,8 +89,12 @@ Atlassian. Stop re-arguing settled decisions. Precedent: decision memory for Jir
 - Keep the URL bar visible in scene 3 once (shows it's a real Atlassian site).
 
 ## Open dependencies (must be resolved before recording)
-1. Teamwork Graph "who to ask" currently shows "(Teamwork Graph unavailable)" in the panel —
-   fix or show the graceful fallback and adjust scene 4 VO.
-2. Human-editable Confluence page for scene 2 (app-user-created page isn't editable).
+1. Teamwork Graph "who to ask": diagnosed 2026-11-04 — app-authored pages have no resolvable
+   people, so the panel shows a note and falls back to the recorded owner. Use the human-owned
+   page (Claim path, 2026-11-05) so TWG returns real people; otherwise trim the TWG line in scene 4.
+2. Human-editable Confluence page for scene 2: resolved 2026-11-05 via the Claim path
+   (human-authored child page). Verify in the browser on the recording day.
 3. Rovo Studio MCP listing (shows as connected app, not "Precedent decisions") — confirm
    what judges will see and phrase scene 5 accordingly.
+4. Production must include post-decision-context (dev 4.8.0+; prod 2.2.0 predates it) if
+   scene 4 is recorded on a production install.
