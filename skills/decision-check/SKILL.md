@@ -1,9 +1,9 @@
 ---
 name: decision-check
-description: Check planned work against a team's recorded engineering decisions before it is built. Use when someone asks "has this been decided before?", when reviewing or refining a Jira issue, or when a change might contradict an earlier decision (for example switching a datastore, changing an API version, or relaxing a security rule). Finds related decisions, flags possible contradictions, and names who decided and who to ask now. Also use when the user asks to record a new decision or to supersede an older one.
+description: Check planned work against a team's recorded engineering decisions before it is built. Use when someone asks "has this been decided before?", when reviewing or refining a Jira issue, or when a change might contradict an earlier decision (for example switching a datastore, changing an API version, or relaxing a security rule). Finds related decisions, flags possible contradictions, and names who decided and who to ask now. Also use when the user asks to record a new decision, to supersede an older one, or to post a decision context comment on an issue.
 license: MIT
 compatibility: Needs the Precedent tools (Forge app "Precedent", also exposed through its Rovo MCP server).
-allowed-tools: search-decisions get-decision check-issue who-to-ask record-decision supersede-decision
+allowed-tools: search-decisions get-decision check-issue who-to-ask record-decision supersede-decision post-decision-context
 ---
 
 # Decision check
@@ -64,3 +64,12 @@ Keep it short:
   cite both ids (old now `superseded`, new `active` with `previous.supersededBy`
   pointing at the new id).
 - If a tool returns `error`, explain it and ask for the missing field; do not guess.
+
+## 6. Post a decision context comment (only when the user asks)
+
+- When the user wants the findings left on the issue for the team, call
+  `post-decision-context` with the issue key (or omit it to use the issue in
+  context) and an optional short `note` from the user.
+- Confirm before posting: it adds a visible comment as the user. Do not post it
+  on your own initiative, and do not post it twice for the same check.
+- Reply with a one-line confirmation and the number of decisions it listed.

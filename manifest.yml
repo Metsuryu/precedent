@@ -97,6 +97,7 @@ modules:
           - who-to-ask
           - record-decision
           - supersede-decision
+          - post-decision-context
 
   # MCP server (Preview): exposes the same tools to Rovo Studio agents and, if an admin
   # allows it, to external MCP clients.

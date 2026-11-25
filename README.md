@@ -8,8 +8,10 @@ remembers what your team already decided and warns you on the Jira issue where i
 - **Surface** related decisions on every Jira issue in the **Precedent** issue panel, with
   **possible contradictions** flagged, plus who decided, when, and a link to the source page.
 - **Ask** the **Precedent** Rovo agent: "Has this been decided before?", "Does this issue
-  contradict anything?" "Who should I ask?" It uses four reusable actions:
-  `search-decisions`, `get-decision`, `check-issue`, `who-to-ask`.
+  contradict anything?" "Who should I ask?" It uses seven reusable actions:
+  read-only `search-decisions`, `get-decision`, `check-issue`, `who-to-ask`, and (on
+  request, after confirming) `record-decision`, `supersede-decision`, `post-decision-context`
+  (posts a "Decision context" comment on the issue).
 - **Who to ask**: Atlassian **Teamwork Graph** (Preview, curated queries, as the viewing user)
   adds the decision page's owners, creator, contributors, their teams, teams linked to the
   issue's project, and linked pages.

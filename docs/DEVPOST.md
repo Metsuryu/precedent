@@ -46,8 +46,8 @@ something Jira, Rovo and other agents can check automatically.
   tag/component overlap + "rules out" restriction phrases. Rovo provides the
   natural-language layer.
 - One service layer (`services/precedent.js`) shared by every surface: panel resolvers,
-  six Rovo `action` modules (search-decisions, get-decision, check-issue, who-to-ask,
-  record-decision, supersede-decision), and the MCP tools.
+  seven Rovo `action` modules (search-decisions, get-decision, check-issue, who-to-ask,
+  record-decision, supersede-decision, post-decision-context), and the MCP tools.
 - Triggers: Confluence page created/updated → resync decision macros; Jira issue
   created/updated → precompute panel matches. A decision-log version counter invalidates
   per-issue caches, so the panel is fast on repeat views.
