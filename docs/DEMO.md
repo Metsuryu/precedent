@@ -96,5 +96,6 @@ Atlassian. Stop re-arguing settled decisions. Precedent: decision memory for Jir
    (human-authored child page). Verify in the browser on the recording day.
 3. Rovo Studio MCP listing (shows as connected app, not "Precedent decisions") — confirm
    what judges will see and phrase scene 5 accordingly.
-4. Production must include post-decision-context (dev 4.8.0+; prod 2.2.0 predates it) if
-   scene 4 is recorded on a production install.
+4. Production includes post-decision-context: resolved 2026-11-27 (prod 2.3.0, eligible for
+   Runs on Atlassian). Note: prod has no installs yet; one-atlas-uyme runs the development
+   install, so record there or on a fresh site installed via the install link.
